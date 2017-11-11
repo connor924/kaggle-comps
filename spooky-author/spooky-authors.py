@@ -20,6 +20,9 @@ from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
 from sklearn import preprocessing
 from xgboost import XGBClassifier
+from sklearn.model_selection import KFold
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import log_loss
 # nltk.download() #Download the necessary datasets
 
 
@@ -74,7 +77,7 @@ train_df["num_words_title"] = train_df["text"].apply(lambda x: len([w for w in s
 test_df["num_words_title"] = test_df["text"].apply(lambda x: len([w for w in str(x).split() if w.istitle()]))
 
 def runMNB(train_X, train_y, test_X, test_y, test_X2):
-    model = naive_bayes.MultinomialNB()
+    model = MultinomialNB()
     model.fit(train_X, train_y)
     pred_test_y = model.predict_proba(test_X)
     pred_test_y2 = model.predict_proba(test_X2)
@@ -114,14 +117,14 @@ test_tfidf = tfidf_vec.transform(test_df['text'].values.tolist())
 cv_scores = []
 pred_full_test = 0
 pred_train = np.zeros([train_df.shape[0], 3])
-kf = model_selection.KFold(n_splits=5, shuffle=True, random_state=2017)
-for dev_index, val_index in kf.split(train_X):
+kf = KFold(n_splits=5, shuffle=True, random_state=2017)
+for dev_index, val_index in kf.split(train_tfidf):
     dev_X, val_X = train_tfidf[dev_index], train_tfidf[val_index]
     dev_y, val_y = y[dev_index], y[val_index]
     pred_val_y, pred_test_y, model = runMNB(dev_X, dev_y, val_X, val_y, test_tfidf)
     pred_full_test = pred_full_test + pred_test_y
     pred_train[val_index,:] = pred_val_y
-    cv_scores.append(metrics.log_loss(val_y, pred_val_y))
+    cv_scores.append(log_loss(val_y, pred_val_y))
 print("Mean cv score : ", np.mean(cv_scores))
 pred_full_test = pred_full_test / 5.
 
@@ -211,9 +214,6 @@ plt.figure()
 plot_confusion_matrix(cnf_matrix, classes=le.classes_,
                       title='Confusion matrix, without normalization')
 plt.show()
-
-
-
 
 
 predictions_test = clfr.predict_proba(test_X)
